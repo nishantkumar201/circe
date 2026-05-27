@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>audio test</title>
+
+    <style>
+        :root {
+          --accent: #00ff88;
+          --bg: #0a0a0a;
+        }
+        #record-btn {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        border: 2px solid var(--accent);
+        background: transparent;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.15s;
+        flex-shrink: 0;
+        /* JS: toggle class 'recording' on click
+              'recording' → background: var(--accent), icon changes to stop */
+        }
+
+        #record-btn.recording {
+          background: var(--accent);
+        }
+
+        #record-btn svg {
+          width: 18px;
+          height: 18px;
+          fill: var(--accent);
+          /* JS: swap icon when recording */
+        }
+
+        #record-btn.recording svg {
+          fill: var(--bg);
+        }
+
+      </style>
+</head>
+<body>
+  <button id="record-btn" aria-label="Record">
+        <!-- Mic icon — JS swaps to stop icon when recording -->
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 1a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V5a4 4 0 0 1 4-4zm-1 
+                   18.94V22h2v-2.06A8 8 0 0 0 20 12h-2a6 6 0 0 1-12 0H4a8 
+                   8 0 0 0 7 7.94z"/>
+        </svg>
+      </button>
+
+      <div id="waveform">
+        <canvas id="waveform-canvas"></canvas>
+        <!-- JS: Web Audio API AnalyserNode → draw bars each animation frame -->
+      </div>
+      
+
+  <script>
+const record = document.getElementById('record-btn')
+let recording = false
+
+if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+  console.log('getUserMedia supported.')
+
+  navigator.mediaDevices
+    .getUserMedia({ audio: true, video: false })
+    .then(stream => {
+      const mediaRecorder = new MediaRecorder(stream)
+
+      record.onclick = () => {
+        if (recording == false) {
+          recording = startRecording(mediaRecorder)
+        } else {
+          recording = stopRecording(mediaRecorder)
+        }
+      }
+    })
+    .catch(err => console.log('getUserMedia error:', err))
+} else {
+  console.log('getUserMedia not supported.')
+}
+
+function startRecording(mediaRecorder) {
+  mediaRecorder.start()
+  console.log('Recording...')
+  record.classList.add('recording')
+  return true
+}
+
+function stopRecording(mediaRecorder) {
+  mediaRecorder.stop()
+  console.log('Recording stopped.')
+  record.classList.remove('recording')
+  return false
+}
+  </script>
+</body>
+</html>
