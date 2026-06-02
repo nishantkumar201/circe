@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>audio test</title>
+
+    <style>
+      :root {
+        --accent: #00ff88;
+        --bg: #0a0a0a;
+      }
+      #record-btn {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        border: 2px solid var(--accent);
+        background: transparent;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.15s;
+        flex-shrink: 0;
+        /* JS: toggle class 'recording' on click
+              'recording' → background: var(--accent), icon changes to stop */
+      }
+
+      #record-btn.recording {
+        background: var(--accent);
+      }
+
+      #record-btn svg {
+        width: 18px;
+        height: 18px;
+        fill: var(--accent);
+        /* JS: swap icon when recording */
+      }
+
+      #record-btn.recording svg {
+        fill: var(--bg);
+      }
+    </style>
+  </head>
+  <body>
+    <button id="record-btn" aria-label="Record">
+      <!-- Mic icon — JS swaps to stop icon when recording -->
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path
+          d="M12 1a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V5a4 4 0 0 1 4-4zm-1 
+                   18.94V22h2v-2.06A8 8 0 0 0 20 12h-2a6 6 0 0 1-12 0H4a8 
+                   8 0 0 0 7 7.94z"
+        />
+      </svg>
+    </button>
+
+    <div id="waveform">
+      <canvas id="waveform-canvas"></canvas>
+      <!-- JS: Web Audio API AnalyserNode → draw bars each animation frame -->
+    </div>
+
+    <script>
+      const record = document.getElementById("record-btn");
+      const currentTime = document.getElementById("current-time");
+
+      let recording = false;
+      let mediaRecorder = null;
+      let chunks = [];
+      let socket = null;
+
+      record.onclick = async () => {
+        if (!recording) {
+          await startRecording();
+          recording = true;
+        } else if (recording) {
+          stopRecording();
+          recording = false;
+        } else {
+          console.log("Error starting recording.");
+        }
+      };
+
+      async function startRecording() {
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+          socket = new WebSocket("ws://localhost:8000/ws");
+          console.log("getUserMedia supported.");
+          socket.onopen = async () => {
+            console.log("Connected to WebSocket server.");
+            try {
+              const stream = await navigator.mediaDevices.getUserMedia({
+                audio: true,
+                video: false,
+              });
+              mediaRecorder = new MediaRecorder(stream);
+
+              mediaRecorder.onstop = () => {
+                mediaRecorder.stream.getTracks().forEach((t) => t.stop());
+                socket.send("End of Recording");
+              };
+
+              mediaRecorder.ondataavailable = (e) => {
+                if (e.data.size > 0) {
+                  chunks.push(e.data);
+                  socket.send(e.data);
+                  console.log("chunks", e.data.size);
+                }
+              };
+
+              mediaRecorder.start(1000);
+              console.log("Recording...");
+              record.classList.add("recording");
+            } catch (err) {
+              console.error("Mic error:", err);
+              recording = false;
+              record.classList.remove("recording");
+            }
+          };
+
+          socket.onmessage = (e) => {
+            console.log("server says", e.data);
+          };
+        } else {
+          console.log("getUserMedia not supported.");
+        }
+      }
+
+      function stopRecording() {
+        mediaRecorder.stop();
+        console.log("Recording stopped.");
+        record.classList.remove("recording");
+      }
+    </script>
+  </body>
+</html>
