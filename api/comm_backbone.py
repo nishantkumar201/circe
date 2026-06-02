@@ -1,7 +1,12 @@
-from fastapi import FastAPI, WebSocket
+import io
+import subprocess
 import uvicorn
+from fastapi import FastAPI, WebSocket
 from fastapi.responses import FileResponse
+from faster_whisper import WhisperModel
 
+
+model = WhisperModel("base.en", device="cuda", compute_type="float16")
 
 class CommBackbone(FastAPI):
     def __init__(self):
@@ -34,11 +39,10 @@ class CommBackbone(FastAPI):
                 data = await websocket.receive()
                 if "bytes" in data:
                     chunks.append(data["bytes"])
-                    print("chunk received")
                 elif "text" in data:
                     if data["text"] == "End of Recording":
-                        print("End of recording")
                         buf = io.BytesIO(b"".join(chunks))
+                        buf.seek(0)
                         segments, _ = model.transcribe(buf)
                         for segment in segments:
                             print(segment.text)

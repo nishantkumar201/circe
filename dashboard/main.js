@@ -25,37 +25,41 @@ async function startRecording() {
     const socket = new WebSocket('REDACTED_HOST')
     console.log('getUserMedia supported.')
     socket.onopen = async () => {
-      console.log('Connected to WebSocket server.')
-      try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false })
-      mediaRecorder = new MediaRecorder(stream)
+    console.log("Connected to WebSocket server.");
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+        video: false,
+      });
+      mediaRecorder = new MediaRecorder(stream);
 
       mediaRecorder.onstop = () => {
-        mediaRecorder.stream.getTracks().forEach(t => t.stop())
-      }
+        mediaRecorder.stream.getTracks().forEach((t) => t.stop());
+        socket.send("End of Recording");
+      };
 
       mediaRecorder.ondataavailable = (e) => {
         if (e.data.size > 0) {
-          chunks.push(e.data)
-          socket.send(e.data)
-          console.log('chunks', e.data.size)
+          chunks.push(e.data);
+          socket.send(e.data);
         }
-      }
+      };
 
-      mediaRecorder.start(1000)
-      console.log('Recording...')
-      record.classList.add('recording')
+      mediaRecorder.start(1000);
+      console.log("Recording...");
+      record.classList.add("recording");
     } catch (err) {
-      console.error('Mic error:', err)
-      recording = false
-      record.classList.remove('recording')
+      console.error("Mic error:", err);
+      recording = false;
+      record.classList.remove("recording");
     }
-    }
-    socket.onmessage = (e) => {
-      console.log('server says', e.data)
-    }
-    } else {
-  console.log('getUserMedia not supported.')
+  };
+
+  socket.onmessage = (e) => {
+    console.log(e.data);
+  };
+} else {
+  console.log("getUserMedia not supported.");
 }
 }
 
