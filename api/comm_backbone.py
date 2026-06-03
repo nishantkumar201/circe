@@ -2,13 +2,14 @@ import io
 import subprocess
 import uvicorn
 import numpy as np
+import soundfile as sf
 from fastapi import FastAPI, WebSocket
 from fastapi.responses import FileResponse
 from faster_whisper import WhisperModel
 from kokoro import KPipeline
 
 model = WhisperModel("base.en", device="cuda", compute_type="float16")
-pipeline = KPipeline(lang_code="a")
+pipeline = KPipeline(lang_code="a", repo_id="hexgrad/Kokoro-82M")
 
 
 class CommBackbone(FastAPI):
@@ -35,6 +36,7 @@ class CommBackbone(FastAPI):
 
     async def audio_websocket(self, websocket: WebSocket):
         chunks = []
+        text_chunks = []
 
         await websocket.accept()
         print("Client connected")
@@ -45,37 +47,33 @@ class CommBackbone(FastAPI):
                     chunks.append(data["bytes"])
                 elif "text" in data:
                     if data["text"] == "End of Recording":
-                        full_text_list = []
                         buf = io.BytesIO(b"".join(chunks))
                         buf.seek(0)
                         segments, _ = model.transcribe(buf)
                         for segment in segments:
                             print(segment.text)
-                            await websocket.send_text(segment.text)
-                            full_text_list.append(segment.text)
-                        full_text = " ".join(full_text_list).strip()
+                            text_chunks.append(segment.text)
 
+                        await websocket.send_text(segment.text)
+
+                        full_text = " ".join(text_chunks)
+
+                        print("full_text", full_text)
+                        audio_chunks_list = []
                         if full_text:
-                            audio_chunks = []
-                            generator = pipeline(
-                                full_text,
-                                voice="af_heart",
-                                speed=1.0,
-                                split_pattern=r"\n+",
-                            )
-                            for gs, ps, audio in generator:
-                                audio_chunks.append(audio)
+                            generator = pipeline(full_text, voice="af_heart", speed=1.0)
 
-                            audio = (
-                                np.concatenate(audio_chunks)
-                                .astype(np.float32)
-                                .tobytes()
-                            )
-                            await websocket.send_bytes(audio)
+                            for _, _, audio in generator:
+                                audio_chunks_list.append(audio)
+                            full_audio = np.concatenate(audio_chunks_list)
+                            # sf.write("output.wav", full_audio, 24000)
+                            # print("Audio saved to output.wav")
 
-                        await websocket.close(code=1000)
+                            audio_out = io.BytesIO()
+                            sf.write(audio_out, full_audio, 24000, format="WAV")
+                            audio_out.seek(0)
+                            await websocket.send_bytes(audio_out.read())
                         break
-
         except Exception as e:
             print(f"Disconnected: {e}")
 

@@ -4,7 +4,6 @@ const currentTime = document.getElementById("current-time");
 let recording = false;
 let mediaRecorder = null;
 let chunks = [];
-let audioContext = null;
 
 updateClock();
 setInterval(updateClock, 1000);
@@ -27,7 +26,6 @@ async function startRecording() {
     console.log("getUserMedia supported.");
     socket.onopen = async () => {
       console.log("Connected to WebSocket server.");
-      socket.binaryType = "arraybuffer";
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: true,
@@ -56,33 +54,20 @@ async function startRecording() {
         record.classList.remove("recording");
       }
     };
-    socket.onmessage = (e) => {
-      if (typeof e.data == "string") {
-        console.log("server says", e.data);
-      } else if (e.data instanceof ArrayBuffer) {
-        console.log("Incoming audio chunk");
-        try {
-          if (!audioContext) {
-            audioContext = new (
-              window.AudioContext || window.webkitAudioContext
-            )();
-          }
-          const float32Data = new Float32Array(e.data);
-          const sampleRate = 24000;
-          const audioBuffer = audioContext.createBuffer(
-            1,
-            float32Data.length,
-            sampleRate,
-          );
-          audioBuffer.getChannelData(0).set(float32Data);
-
-          const audioSource = audioContext.createBufferSource();
-          audioSource.buffer = audioBuffer;
-          audioSource.connect(audioContext.destination);
-          audioSource.start(0);
-        } catch (err) {
-          console.error("Error processing audio chunk:", err);
+    socket.onmessage = async (e) => {
+      if (e.data instanceof Blob) {
+        const arrayBuf = await e.data.arrayBuffer();
+        console.log("Server is doing audio transcription");
+        if (!audioCtx) {
+          audioCtx = new AudioContext();
         }
+        const audioBuffer = await audioCtx.decodeAudioData(arrayBuf);
+        const source = audioCtx.createBufferSource();
+        source.buffer = audioBuffer;
+        source.connect(audioCtx.destination);
+        source.start();
+      } else if (typeof e.data === "string") {
+        console.log("server says", e.data);
       }
     };
   } else {
