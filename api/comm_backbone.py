@@ -25,6 +25,37 @@ class CommBackbone(FastAPI):
         self.post("/echo")(self.echo)
         self.websocket("/ws")(self.audio_websocket)
 
+    async def _STT(self, websocket: WebSocket, chunks):
+        text_chunks = []
+        buf = io.BytesIO(b"".join(chunks))
+        buf.seek(0)
+        segments, _ = model.transcribe(buf)
+        for segment in segments:
+            print(segment.text)
+            text_chunks.append(segment.text)
+
+        await websocket.send_text(segment.text)
+        return text_chunks
+    
+    async def _TTS(self, websocket: WebSocket, text):
+        full_text = " ".join(text)
+
+        # print("full_text", full_text)
+        audio_chunks_list = []
+        if full_text:
+            generator = pipeline(full_text, voice="bm_george", speed=1.0)
+
+            for _, _, audio in generator:
+                audio_chunks_list.append(audio)
+            full_audio = np.concatenate(audio_chunks_list)
+            # sf.write("output.wav", full_audio, 24000)
+            # print("Audio saved to output.wav")
+
+            audio_out = io.BytesIO()
+            sf.write(audio_out, full_audio, 24000, format="WAV")
+            audio_out.seek(0)
+            await websocket.send_bytes(audio_out.read())
+
     async def status(self, health):
         return {"status": "ok"}
 
@@ -47,32 +78,8 @@ class CommBackbone(FastAPI):
                     chunks.append(data["bytes"])
                 elif "text" in data:
                     if data["text"] == "End of Recording":
-                        buf = io.BytesIO(b"".join(chunks))
-                        buf.seek(0)
-                        segments, _ = model.transcribe(buf)
-                        for segment in segments:
-                            print(segment.text)
-                            text_chunks.append(segment.text)
-
-                        await websocket.send_text(segment.text)
-
-                        full_text = " ".join(text_chunks)
-
-                        print("full_text", full_text)
-                        audio_chunks_list = []
-                        if full_text:
-                            generator = pipeline(full_text, voice="bm_george", speed=1.0)
-
-                            for _, _, audio in generator:
-                                audio_chunks_list.append(audio)
-                            full_audio = np.concatenate(audio_chunks_list)
-                            # sf.write("output.wav", full_audio, 24000)
-                            # print("Audio saved to output.wav")
-
-                            audio_out = io.BytesIO()
-                            sf.write(audio_out, full_audio, 24000, format="WAV")
-                            audio_out.seek(0)
-                            await websocket.send_bytes(audio_out.read())
+                        text_chunks = await self._STT(websocket, chunks)
+                        await self._TTS(websocket, text_chunks)
                         break
         except Exception as e:
             print(f"Disconnected: {e}")
