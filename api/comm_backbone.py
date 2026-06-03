@@ -35,10 +35,11 @@ class CommBackbone(FastAPI):
             text_chunks.append(segment.text)
 
         await websocket.send_text(segment.text)
-        return text_chunks
+        full_text = " ".join(text_chunks)
+        return full_text
     
-    async def _TTS(self, websocket: WebSocket, text):
-        full_text = " ".join(text)
+    async def _TTS(self, websocket: WebSocket, full_text):
+        
 
         # print("full_text", full_text)
         audio_chunks_list = []
@@ -78,8 +79,8 @@ class CommBackbone(FastAPI):
                     chunks.append(data["bytes"])
                 elif "text" in data:
                     if data["text"] == "End of Recording":
-                        text_chunks = await self._STT(websocket, chunks)
-                        await self._TTS(websocket, text_chunks)
+                        text = await self._STT(websocket, chunks)
+                        await self._TTS(websocket, text)
                         break
         except Exception as e:
             print(f"Disconnected: {e}")
