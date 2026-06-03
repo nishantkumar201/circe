@@ -1,12 +1,15 @@
 import io
 import subprocess
 import uvicorn
+import numpy as np
 from fastapi import FastAPI, WebSocket
 from fastapi.responses import FileResponse
 from faster_whisper import WhisperModel
-
+from kokoro import KPipeline
 
 model = WhisperModel("base.en", device="cuda", compute_type="float16")
+pipeline = KPipeline(lang_code="a")
+
 
 class CommBackbone(FastAPI):
     def __init__(self):
@@ -32,6 +35,7 @@ class CommBackbone(FastAPI):
 
     async def audio_websocket(self, websocket: WebSocket):
         chunks = []
+
         await websocket.accept()
         print("Client connected")
         try:
@@ -41,13 +45,37 @@ class CommBackbone(FastAPI):
                     chunks.append(data["bytes"])
                 elif "text" in data:
                     if data["text"] == "End of Recording":
+                        full_text_list = []
                         buf = io.BytesIO(b"".join(chunks))
                         buf.seek(0)
                         segments, _ = model.transcribe(buf)
                         for segment in segments:
                             print(segment.text)
                             await websocket.send_text(segment.text)
+                            full_text_list.append(segment.text)
+                        full_text = " ".join(full_text_list).strip()
+
+                        if full_text:
+                            audio_chunks = []
+                            generator = pipeline(
+                                full_text,
+                                voice="af_heart",
+                                speed=1.0,
+                                split_pattern=r"\n+",
+                            )
+                            for gs, ps, audio in generator:
+                                audio_chunks.append(audio)
+
+                            audio = (
+                                np.concatenate(audio_chunks)
+                                .astype(np.float32)
+                                .tobytes()
+                            )
+                            await websocket.send_bytes(audio)
+
+                        await websocket.close(code=1000)
                         break
+
         except Exception as e:
             print(f"Disconnected: {e}")
 
