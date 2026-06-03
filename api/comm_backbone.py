@@ -61,7 +61,7 @@ class CommBackbone(FastAPI):
                         print("full_text", full_text)
                         audio_chunks_list = []
                         if full_text:
-                            generator = pipeline(full_text, voice="af_heart", speed=1.0)
+                            generator = pipeline(full_text, voice="bm_george", speed=1.0)
 
                             for _, _, audio in generator:
                                 audio_chunks_list.append(audio)

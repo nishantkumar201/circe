@@ -4,22 +4,26 @@ const currentTime = document.getElementById("current-time");
 let recording = false;
 let mediaRecorder = null;
 let chunks = [];
+let socket = null;
+let audioCtx = null;
 
 updateClock();
 setInterval(updateClock, 1000);
 
 record.onclick = async () => {
+  if (!audioCtx) {
+    audioCtx = new AudioContext();
+    await audioCtx.resume();
+  }
+
   if (!recording) {
     await startRecording();
     recording = true;
   } else if (recording) {
     stopRecording();
     recording = false;
-  } else {
-    console.log("Error starting recording.");
   }
 };
-
 async function startRecording() {
   if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
     const socket = new WebSocket("REDACTED_HOST");
@@ -35,6 +39,7 @@ async function startRecording() {
 
         mediaRecorder.onstop = () => {
           mediaRecorder.stream.getTracks().forEach((t) => t.stop());
+          socket.send("End of Recording");
         };
 
         mediaRecorder.ondataavailable = (e) => {
@@ -57,10 +62,8 @@ async function startRecording() {
     socket.onmessage = async (e) => {
       if (e.data instanceof Blob) {
         const arrayBuf = await e.data.arrayBuffer();
+        await audioCtx.resume();
         console.log("Server is doing audio transcription");
-        if (!audioCtx) {
-          audioCtx = new AudioContext();
-        }
         const audioBuffer = await audioCtx.decodeAudioData(arrayBuf);
         const source = audioCtx.createBufferSource();
         source.buffer = audioBuffer;
