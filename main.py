@@ -1,3 +1,6 @@
+import os
+os.environ["LD_LIBRARY_PATH"] = "/REDACTED/lib/python3.11/site-packages/nvidia/cublas/lib:" + os.environ.get("LD_LIBRARY_PATH", "")
+
 from api.comm_backbone import CommBackbone
 from comms.tailscale import Tailscale
 from fastapi.staticfiles import StaticFiles
