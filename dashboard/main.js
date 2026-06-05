@@ -9,7 +9,6 @@ let recording = false;
 let mediaRecorder = null;
 let chunks = [];
 let socket = null;
-let audioCtx = null;
 
 menuBtn.onclick = () => {
   sidebar.classList.toggle("open");
@@ -25,11 +24,6 @@ updateClock();
 setInterval(updateClock, 1000);
 
 record.onclick = async () => {
-  if (!audioCtx) {
-    audioCtx = new AudioContext();
-    await audioCtx.resume();
-  }
-
   if (!recording) {
     await startRecording();
     recording = true;
@@ -81,14 +75,7 @@ async function startRecording() {
         audio.onended = () => {
           URL.revokeObjectURL(url);
         };
-        // const arrayBuf = await e.data.arrayBuffer();
-        // await audioCtx.resume();
         console.log("Server is doing audio transcription");
-        // const audioBuffer = await audioCtx.decodeAudioData(arrayBuf);
-        // const source = audioCtx.createBufferSource();
-        // source.buffer = awudioBuffer;
-        // source.connect(audioCtx.destination);
-        // source.start();
       } else if (typeof e.data === "string") {
           if (e.data.startsWith("USER: ")) {
               appendMessage("user", e.data.slice(6));
