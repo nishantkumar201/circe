@@ -1,11 +1,25 @@
+const menuBtn = document.getElementById("menu-btn");
+const sidebar = document.querySelector("aside");
+const overlay = document.getElementById("sidebar-overlay");
 const record = document.getElementById("record-btn");
 const currentTime = document.getElementById("current-time");
+const textInput = document.getElementById("text-input");
 
 let recording = false;
 let mediaRecorder = null;
 let chunks = [];
 let socket = null;
 let audioCtx = null;
+
+menuBtn.onclick = () => {
+  sidebar.classList.toggle("open");
+  overlay.classList.toggle("open");
+};
+
+overlay.onclick = () => {
+  sidebar.classList.remove("open");
+  overlay.classList.remove("open");
+};
 
 updateClock();
 setInterval(updateClock, 1000);
@@ -26,7 +40,7 @@ record.onclick = async () => {
 };
 async function startRecording() {
   if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-    const socket = new WebSocket("REDACTED_HOST");
+    const socket = new WebSocket("REDACTED_HOST/audio");
     console.log("getUserMedia supported.");
     socket.onopen = async () => {
       console.log("Connected to WebSocket server.");
@@ -61,22 +75,68 @@ async function startRecording() {
     };
     socket.onmessage = async (e) => {
       if (e.data instanceof Blob) {
-        const arrayBuf = await e.data.arrayBuffer();
-        await audioCtx.resume();
+        const url = URL.createObjectURL(e.data);
+        const audio = new Audio(url);
+        audio.play();
+        audio.onended = () => {
+          URL.revokeObjectURL(url);
+        };
+        // const arrayBuf = await e.data.arrayBuffer();
+        // await audioCtx.resume();
         console.log("Server is doing audio transcription");
-        const audioBuffer = await audioCtx.decodeAudioData(arrayBuf);
-        const source = audioCtx.createBufferSource();
-        source.buffer = audioBuffer;
-        source.connect(audioCtx.destination);
-        source.start();
+        // const audioBuffer = await audioCtx.decodeAudioData(arrayBuf);
+        // const source = audioCtx.createBufferSource();
+        // source.buffer = awudioBuffer;
+        // source.connect(audioCtx.destination);
+        // source.start();
       } else if (typeof e.data === "string") {
-        console.log("server says", e.data);
+          if (e.data.startsWith("USER: ")) {
+              appendMessage("user", e.data.slice(6));
+          } else if (e.data.startsWith("ASSISTANT: ")) {
+              appendMessage("jarvis", e.data.slice(11));
+          }
       }
     };
   } else {
     console.log("getUserMedia not supported.");
   }
 }
+
+document.getElementById("send-btn").onclick = () => {
+  try {
+    const text = textInput.value.trim();
+    if (!text) return;
+    const webSocket = new WebSocket("REDACTED_HOST/text");
+
+    webSocket.onopen = () => {
+      appendMessage("user", text);
+      webSocket.send(text);
+      textInput.value = "";
+    };
+
+    webSocket.onmessage = (e) => {
+      if (e.data.startsWith("ASSISTANT: ")) {
+              appendMessage("jarvis", e.data.slice(11));
+          }
+          // webSocket.close();
+      };
+    } catch (error) {
+      console.error("Error:", error);
+    }
+};
+
+function appendMessage(type, text) {
+  const feed = document.getElementById("transcript-feed");
+  const div = document.createElement("div");
+  div.classList.add("message", type);
+  div.textContent = text;
+  feed.appendChild(div);
+  feed.scrollTop = feed.scrollHeight;
+}
+
+document.getElementById("text-input").onkeydown = (e) => {
+  if (e.key === "Enter") document.getElementById("send-btn").onclick();
+};
 
 function stopRecording() {
   mediaRecorder.stop();

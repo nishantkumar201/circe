@@ -9,9 +9,11 @@
 <link rel="stylesheet" href="/dashboard/styles.css">
 </head>
 <body>
+<div id="sidebar-overlay" class="sidebar-overlay"></div>
 
 <!-- ── Header ── -->
 <header>
+  <button id="menu-btn" class="menu-btn" aria-label="Menu">☰</button>
   <span class="logo">JARVIS</span>
   <div class="status-bar">
     <div class="status-dot" id="server-status-dot"></div>
@@ -63,6 +65,8 @@
                  8 0 0 0 7 7.94z"/>
       </svg>
     </button>
+    <input type="text" id="text-input" class="text-input" placeholder="Type a message..." />
+    <button id="send-btn" class="send-btn">↑</button>
   </div>
 </main>
 

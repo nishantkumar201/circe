@@ -6,6 +6,7 @@ import soundfile as sf
 import httpx
 import time
 import ollama
+import re
 from fastapi import FastAPI, WebSocket
 from fastapi.responses import FileResponse
 from faster_whisper import WhisperModel
@@ -20,7 +21,7 @@ class CommBackbone(FastAPI):
     def __init__(self):
         super().__init__()
         self._register_endpoints()
-        self._development = True
+        self._development = False
         self.message = [
             {
                 "role": "system",
@@ -54,7 +55,8 @@ class CommBackbone(FastAPI):
         self.get("/status")(self.status)
         self.post("/addition")(self.addition)
         self.post("/echo")(self.echo)
-        self.websocket("/ws")(self.audio_websocket)
+        self.websocket("/ws/audio")(self.audio_websocket)
+        self.websocket("/ws/text")(self.text_websocket)
 
     async def _STT(self, websocket: WebSocket, chunks):
         text_chunks = []
@@ -64,10 +66,10 @@ class CommBackbone(FastAPI):
         for segment in segments:
             print(segment.text)
             text_chunks.append(segment.text)
-            await websocket.send_text(segment.text)
+            await websocket.send_text(f"USER: {segment.text}")
         full_text = " ".join(text_chunks)
         return full_text
-    
+
     async def _LLM(self, text):
         self.message.append({"role": "user", "content": text})
         response = await client.chat(model = "llama3.2", messages = self.message)
@@ -77,9 +79,10 @@ class CommBackbone(FastAPI):
     
     async def _TTS(self, websocket: WebSocket, full_text):
         # print("full_text", full_text)
+        cleaned_text = re.sub(r'[^a-zA-Z0-9\s\.\,\!\?]', '', full_text)
         audio_chunks_list = []
         if full_text:
-            generator = pipeline(full_text, voice="bm_george", speed=1.25)
+            generator = pipeline(cleaned_text, voice="bf_alice", speed=1.25)
 
             for _, _, audio in generator:
                 audio_chunks_list.append(audio)
@@ -115,8 +118,22 @@ class CommBackbone(FastAPI):
                     if data["text"] == "End of Recording":
                         text = await self._STT(websocket, chunks) 
                         response = await self._LLM(text)
+                        await websocket.send_text(f"ASSISTANT: {response}")
                         await self._TTS(websocket, response)
-                        break
+                    else:
+                        await websocket.send_text(data["text"])
+        except Exception as e:
+            print(f"Disconnected: {e}")
+    
+    async def text_websocket(self, websocket: WebSocket):
+        await websocket.accept()
+        print("Client connected")
+        
+        try:
+            while True:
+                data = await websocket.receive_text()
+                response = await self._LLM(data)
+                await websocket.send_text(f"ASSISTANT: {response}")
         except Exception as e:
             print(f"Disconnected: {e}")
 
