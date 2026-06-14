@@ -15,7 +15,7 @@ menuBtn.onclick = () => {
   overlay.classList.toggle("open");
 };
 
-overlay.onclick = () => {
+overlay.onclick = () => { 
   sidebar.classList.remove("open");
   overlay.classList.remove("open");
 };
