@@ -15,7 +15,7 @@ menuBtn.onclick = () => {
   overlay.classList.toggle("open");
 };
 
-overlay.onclick = () => { 
+overlay.onclick = () => {
   sidebar.classList.remove("open");
   overlay.classList.remove("open");
 };
@@ -34,7 +34,13 @@ record.onclick = async () => {
 };
 async function startRecording() {
   if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-    const socket = new WebSocket("REDACTED_HOST/audio");
+    let wsProtocol;
+    if (location.protocol == "https:") {
+      wsProtocol = "wss:";
+    } else {
+      wsProtocol = "ws:";
+    }
+    const socket = new WebSocket(`${wsProtocol}//${location.host}/ws/audio`);
     console.log("getUserMedia supported.");
     socket.onopen = async () => {
       console.log("Connected to WebSocket server.");
@@ -77,11 +83,11 @@ async function startRecording() {
         };
         console.log("Server is doing audio transcription");
       } else if (typeof e.data === "string") {
-          if (e.data.startsWith("USER: ")) {
-              appendMessage("user", e.data.slice(6));
-          } else if (e.data.startsWith("ASSISTANT: ")) {
-              appendMessage("jarvis", e.data.slice(11));
-          }
+        if (e.data.startsWith("USER: ")) {
+          appendMessage("user", e.data.slice(6));
+        } else if (e.data.startsWith("ASSISTANT: ")) {
+          appendMessage("erasmus", e.data.slice(11));
+        }
       }
     };
   } else {
@@ -93,7 +99,13 @@ document.getElementById("send-btn").onclick = () => {
   try {
     const text = textInput.value.trim();
     if (!text) return;
-    const webSocket = new WebSocket("REDACTED_HOST/text");
+    let wsProtocol;
+    if (location.protocol == "https:") {
+      wsProtocol = "wss:";
+    } else {
+      wsProtocol = "ws:";
+    }
+    const webSocket = new WebSocket(`${wsProtocol}//${location.host}/ws/text`);
 
     webSocket.onopen = () => {
       appendMessage("user", text);
@@ -103,13 +115,12 @@ document.getElementById("send-btn").onclick = () => {
 
     webSocket.onmessage = (e) => {
       if (e.data.startsWith("ASSISTANT: ")) {
-              appendMessage("jarvis", e.data.slice(11));
-          }
-          // webSocket.close();
-      };
-    } catch (error) {
-      console.error("Error:", error);
-    }
+        appendMessage("erasmus", e.data.slice(11));
+      }
+    };
+  } catch (error) {
+    console.error("Error:", error);
+  }
 };
 
 function appendMessage(type, text) {
