@@ -3,6 +3,7 @@ import uvicorn
 import numpy as np
 import soundfile as sf
 import re
+import json
 from fastapi import FastAPI, WebSocket
 from fastapi.responses import FileResponse
 from faster_whisper import WhisperModel
@@ -78,9 +79,8 @@ class CommBackbone(FastAPI):
                 elif "text" in data:
                     if data["text"] == "End of Recording":
                         text = await self._STT(websocket, chunks)
-                        response = await llm.orchestration_layer(text)
-                        await websocket.send_text(f"ASSISTANT: {response}")
-                        await self._TTS(websocket, response)
+                        content = await self._orchestration_layer_handler(text, websocket)
+                        await self._TTS(websocket, content)
                     else:
                         await websocket.send_text(data["text"])
         except Exception as e:
@@ -93,16 +93,25 @@ class CommBackbone(FastAPI):
         try:
             while True:
                 data = await websocket.receive_text()
-                response = await llm.orchestration_layer(data)
-                await websocket.send_text(f"ASSISTANT: {response}")
+                await self._orchestration_layer_handler(data, websocket)
         except Exception as e:
             print(f"Disconnected: {e}")
-
+    
+    async def _orchestration_layer_handler(self, text, websocket):
+        full_text = ""
+        async for event in llm.orchestration_layer(text):
+            await websocket.send_text(json.dumps(event))
+            if event["type"] == "token":
+                full_text += event["content"]
+            elif event["type"] == "end":
+                break
+        return full_text
+    
     def dashboard(self):
         return FileResponse("dashboard/index.html")
 
     def run(self):
         if self._development:
-            uvicorn.run("main:jarvis", host="0.0.0.0", port=8000, reload=True)
+            uvicorn.run("main:circe", host="0.0.0.0", port=8000, reload=True)
         else:
-            uvicorn.run("main:jarvis", host="0.0.0.0", port=8000)
+            uvicorn.run("main:circe", host="0.0.0.0", port=8000)

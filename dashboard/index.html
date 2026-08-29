@@ -1,95 +1,96 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Erasmus</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link
-      href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap"
-      rel="stylesheet"
-    />
-    <link rel="stylesheet" href="/dashboard/styles.css" />
-  </head>
-  <body>
-    <div id="sidebar-overlay" class="sidebar-overlay"></div>
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Circe</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link
+  href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=DM+Sans:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap"
+  rel="stylesheet"
+/>
+<link rel="stylesheet" href="/dashboard/styles.css" />
+<script src="/dashboard/marked.min.js"></script>
+</head>
+<body>
+<div id="sidebar-overlay" class="sidebar-overlay"></div>
 
-    <!-- ── Header ── -->
-    <header>
-      <button id="menu-btn" class="menu-btn" aria-label="Menu">☰</button>
-      <span class="logo">Erasmus</span>
-      <div class="status-bar">
-        <div class="status-dot" id="server-status-dot"></div>
-        <span id="server-status-label">connecting...</span>
-        <span id="current-time"></span>
-      </div>
-    </header>
+<!-- ── Header ── -->
+<header>
+<button id="menu-btn" class="menu-btn" aria-label="Menu">☰</button>
+<span class="logo">Circe</span>
+<div class="status-bar">
+<div class="status-dot" id="server-status-dot"></div>
+<span id="server-status-label">connecting...</span>
+<span id="current-time"></span>
+</div>
+</header>
 
-    <!-- ── Sidebar ── -->
-    <aside>
-      <div class="sidebar-section">
-        <h3>Health</h3>
-        <div class="metric-card">
-          <div class="metric-label">Heart rate</div>
-          <div class="metric-value" id="metric-hr">
+<!-- ── Sidebar ── -->
+<aside>
+<div class="sidebar-section">
+<h3>Health</h3>
+<div class="metric-card">
+<div class="metric-label">Heart rate</div>
+<div class="metric-value" id="metric-hr">
             --<span class="metric-unit">bpm</span>
-          </div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-label">HRV</div>
-          <div class="metric-value" id="metric-hrv">
+</div>
+</div>
+<div class="metric-card">
+<div class="metric-label">HRV</div>
+<div class="metric-value" id="metric-hrv">
             --<span class="metric-unit">ms</span>
-          </div>
-        </div>
-        <div class="metric-card">
-          <div class="metric-label">Steps today</div>
-          <div class="metric-value" id="metric-steps">--</div>
-        </div>
-      </div>
+</div>
+</div>
+<div class="metric-card">
+<div class="metric-label">Steps today</div>
+<div class="metric-value" id="metric-steps">--</div>
+</div>
+</div>
 
-      <div class="sidebar-section">
-        <h3>Devices</h3>
-        <div class="device-list" id="device-list"></div>
-      </div>
+<div class="sidebar-section">
+<h3>Devices</h3>
+<div class="device-list" id="device-list"></div>
+</div>
 
-      <div class="sidebar-section">
-        <h3>Watchlist</h3>
-        <div id="stock-list"></div>
-      </div>
-    </aside>
+<div class="sidebar-section">
+<h3>Watchlist</h3>
+<div id="stock-list"></div>
+</div>
+</aside>
 
-    <!-- ── Main ── -->
-    <main>
-      <div id="transcript-feed">
-        <div class="message system">Session started</div>
-      </div>
+<!-- ── Main ── -->
+<main>
+<div id="transcript-feed">
+<div class="message system">Session started</div>
+</div>
 
-      <div class="voice-bar">
-        <button id="record-btn" aria-label="Record">
-          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-            <path
-              d="M12 1a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V5a4 4 0 0 1 4-4zm-1 
+<div class="voice-bar">
+<button id="record-btn" aria-label="Record">
+<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+<path
+d="M12 1a4 4 0 0 1 4 4v6a4 4 0 0 1-8 0V5a4 4 0 0 1 4-4zm-1 
                  18.94V22h2v-2.06A8 8 0 0 0 20 12h-2a6 6 0 0 1-12 0H4a8 
                  8 0 0 0 7 7.94z"
-            />
-          </svg>
-        </button>
-        <input
-          type="text"
-          id="text-input"
-          class="text-input"
-          placeholder="Type a message..."
-        />
-        <button id="send-btn" class="send-btn">↑</button>
-      </div>
-    </main>
+/>
+</svg>
+</button>
+<input
+type="text"
+id="text-input"
+class="text-input"
+placeholder="Type a message..."
+/>
+<button id="send-btn" class="send-btn">↑</button>
+</div>
+</main>
 
-    <!-- ── Footer ── -->
-    <footer>
-      <span>local · tailscale</span>
-      <span id="latency-display">-- ms</span>
-    </footer>
+<!-- ── Footer ── -->
+<footer>
+<span>local · tailscale</span>
+<span id="latency-display">-- ms</span>
+</footer>
 
-    <script src="/dashboard/main.js"></script>
-  </body>
+<script src="/dashboard/main.js"></script>
+</body>
 </html>

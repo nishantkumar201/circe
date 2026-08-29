@@ -13,7 +13,7 @@ class LLM:
             {
                 "role": "system",
                 "content": (
-                    "Your name is Erasmus. "
+                    "Your name is Circe. "
                     "You are a helpful assistant. You can understand and generate "
                     "natural language. You can also understand and generate audio. "
                     "You can perform various tasks such as answering questions, "
@@ -42,28 +42,36 @@ class LLM:
             raise RuntimeError("Ollama failed to start")
 
     async def orchestration_layer (self, user_query):
-        classification = await self.router(user_query)
-        print(classification)
-        try:
-            json_content = json.loads(classification)
-            depth = json_content["depth"]
-        except Exception as e:
-            print(f"Router parse error: {e}")
-            print(f"Raw router output was: {classification}")
-            depth = 1
+        yield {"type": "start", "content": None}
+        self.message.append({"role": "user", "content": user_query})
+        ## Here is where router logic goes/other agents that have full chat
+        full_text = ""
+        async for chunks in self._stream_chat(model= "llama3.2:latest", messages = self.message):
+            # Modify messages to the end result of the end prodcut of the router logic
+            yield {"type": "token", "content": chunks}
+            full_text+=chunks
+        self.message.append({"role": "assistant", "content": full_text})
+        yield {"type": "end", "content": None}
+        # # classification = await self.router(user_query)
+        # # print(classification)
+        # # try:
+        # #     json_content = json.loads(classification)
+        # #     depth = json_content["depth"]
+        # # except Exception as e:
+        # #     print(f"Router parse error: {e}")
+        # #     print(f"Raw router output was: {classification}")
+        # #     depth = 1
 
-        if depth < 3:
-            self.message.append({"role": "user", "content": user_query})
-            response = await self.client.chat(model = "llama3.2:latest", messages = self.message)
-            assistant_content = response.message.content
-            self.message.append({"role": "assistant", "content": assistant_content})
-            return assistant_content
-        else:
-            self.message.append({"role": "user", "content": user_query})
-            assistant_content = "Depth too high"
-            return assistant_content
-
-
+        # # if depth < 3:
+        # self.message.append({"role": "user", "content": user_query})
+        # response = await self.client.chat(model = "llama3.2:latest", messages = self.message)
+        # assistant_content = response.message.content
+        # self.message.append({"role": "assistant", "content": assistant_content})
+        # return assistant_content
+        # # else:
+        # #     self.message.append({"role": "user", "content": user_query})
+        # #     assistant_content = "Depth too high"
+        # #     return assistant_content
 
     async def router(self, user_query):
         router = await self.client.chat(model= "llama3.2:3b", 
@@ -71,8 +79,8 @@ class LLM:
                         messages= [{
                         "role": "system",
                         "content": """
-                        CRITICAL: Output ONLY a raw JSON object. No explanation. No preamble. 
-                        Start your response with { and end with }. Nothing else.
+                        # CRITICAL: Output ONLY a raw JSON object. No explanation. No preamble. 
+                        # Start your response with { and end with }. Nothing else.
                         """
                         },
                         {
@@ -81,4 +89,13 @@ class LLM:
                         }])
         return router.message.content
 
+    async def _stream_chat(self, model, messages):
+        response = await self.client.chat(model = model,
+                        messages= messages,
+                        stream = True
+                        )
+        async for chunk in response:
+            if not chunk.message.content:
+                continue
+            yield chunk.message.content
 

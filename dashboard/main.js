@@ -9,6 +9,9 @@ let recording = false;
 let mediaRecorder = null;
 let chunks = [];
 let socket = null;
+let firstToken = true;
+let currentAssistantDiv = null;
+let currentAssistantText = "";
 
 menuBtn.onclick = () => {
   sidebar.classList.toggle("open");
@@ -26,12 +29,17 @@ setInterval(updateClock, 1000);
 record.onclick = async () => {
   if (!recording) {
     await startRecording();
+    firstToken = true;
+    currentAssistantDiv = null;
+    currentAssistantText = "";
+
     recording = true;
   } else if (recording) {
     stopRecording();
     recording = false;
   }
 };
+
 async function startRecording() {
   if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
     let wsProtocol;
@@ -40,7 +48,7 @@ async function startRecording() {
     } else {
       wsProtocol = "ws:";
     }
-    const socket = new WebSocket(`${wsProtocol}//${location.host}/ws/audio`);
+    socket = new WebSocket(`${wsProtocol}//${location.host}/ws/audio`);
     console.log("getUserMedia supported.");
     socket.onopen = async () => {
       console.log("Connected to WebSocket server.");
@@ -81,12 +89,28 @@ async function startRecording() {
         audio.onended = () => {
           URL.revokeObjectURL(url);
         };
-        console.log("Server is doing audio transcription");
+        console.log("Server is finished doing audio transcription");
       } else if (typeof e.data === "string") {
         if (e.data.startsWith("USER: ")) {
           appendMessage("user", e.data.slice(6));
-        } else if (e.data.startsWith("ASSISTANT: ")) {
-          appendMessage("erasmus", e.data.slice(11));
+        } else {
+          const event = JSON.parse(e.data);
+          if (event.type === "token") {
+            if (firstToken === true) {
+              const thinkingMessage = document.querySelector(".thinking-message");
+              if (thinkingMessage) thinkingMessage.remove();
+              currentAssistantDiv = appendMessage("circe", "");
+              firstToken = false;
+            }
+            currentAssistantText += event.content;
+            const span = document.createElement("span");
+            span.classList.add("token-span");
+            span.textContent = event.content;
+            currentAssistantDiv.appendChild(span);
+            scrollToBottom(currentAssistantDiv);
+          } else if (event.type === "end") {
+            currentAssistantDiv.innerHTML = marked.parse(currentAssistantText);
+          }
         }
       }
     };
@@ -96,40 +120,85 @@ async function startRecording() {
 }
 
 document.getElementById("send-btn").onclick = () => {
-  try {
-    const text = textInput.value.trim();
-    if (!text) return;
-    let wsProtocol;
-    if (location.protocol == "https:") {
-      wsProtocol = "wss:";
-    } else {
-      wsProtocol = "ws:";
-    }
-    const webSocket = new WebSocket(`${wsProtocol}//${location.host}/ws/text`);
+  const text = textInput.value.trim();
+  if (!text) return;
 
-    webSocket.onopen = () => {
-      appendMessage("user", text);
-      webSocket.send(text);
-      textInput.value = "";
-    };
-
-    webSocket.onmessage = (e) => {
-      if (e.data.startsWith("ASSISTANT: ")) {
-        appendMessage("erasmus", e.data.slice(11));
-      }
-    };
-  } catch (error) {
-    console.error("Error:", error);
+  let wsProtocol;
+  if (location.protocol == "https:") {
+    wsProtocol = "wss:";
+  } else {
+    wsProtocol = "ws:";
   }
+  const webSocket = new WebSocket(`${wsProtocol}//${location.host}/ws/text`);
+
+  webSocket.onopen = () => {
+    appendMessage("user", text);
+    webSocket.send(text);
+    textInput.value = "";
+    appendMessage("circe", "Thinking...");
+    firstToken = true;
+    currentAssistantText = "";
+    currentAssistantDiv = null;
+  };
+
+  webSocket.onmessage = (e) => {
+    const event = JSON.parse(e.data);
+
+    if (event.type === "token") {
+      if (firstToken === true) {
+        const thinkingMessage = document.querySelector(".thinking-message");
+        if (thinkingMessage) thinkingMessage.remove();
+        currentAssistantDiv = appendMessage("circe", "");
+        firstToken = false;
+      }
+      currentAssistantText += event.content;
+      const span = document.createElement("span");
+      span.classList.add("token-span");
+      span.textContent = event.content;
+      currentAssistantDiv.appendChild(span);
+      scrollToBottom(currentAssistantDiv);
+    } else if (event.type === "end") {
+      currentAssistantDiv.innerHTML = marked.parse(currentAssistantText);
+    }
+  };
+
+  webSocket.onerror = (err) => {
+    console.error("WebSocket error:", err);
+  };
 };
 
 function appendMessage(type, text) {
   const feed = document.getElementById("transcript-feed");
   const div = document.createElement("div");
   div.classList.add("message", type);
-  div.textContent = text;
+
+  if (text === "Thinking...") {
+    div.classList.add("thinking-message");
+    div.innerHTML = `<span class="dot"></span><span class="dot"></span><span class="dot"></span>`;
+  } else if (type === "circe" && typeof marked !== "undefined") {
+    div.innerHTML = marked.parse(text);
+  } else {
+    div.textContent = text;
+  }
+
   feed.appendChild(div);
-  feed.scrollTop = feed.scrollHeight;
+  scrollToBottom(div);
+  return div;
+}
+
+function scrollToBottom(latestEl) {
+  requestAnimationFrame(() => {
+    const feed = document.getElementById("transcript-feed");
+
+    feed.scrollTo({
+      top: feed.scrollHeight,
+      behavior: "smooth",
+    });
+
+    if (latestEl && latestEl.scrollIntoView) {
+      latestEl.scrollIntoView({ behavior: "smooth", block: "end" });
+    }
+  });
 }
 
 document.getElementById("text-input").onkeydown = (e) => {
