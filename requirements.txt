@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+ollama
+httpx
+faster-whisper
+kokoro
+numpy
+soundfile
+torch
