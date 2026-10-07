@@ -86,7 +86,7 @@ Circe currently requires:
 - Python and the project's dependencies
 - A CUDA-capable GPU for the current faster-whisper configuration
 - Ollama with the required model(s) pulled locally
-- Tailscale if remote access is desired
+- Tailscale for remote access
 
 Run:
 
